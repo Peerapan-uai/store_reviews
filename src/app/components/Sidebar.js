@@ -1,14 +1,19 @@
+// src/app/components/Sidebar.js
 import Link from 'next/link';
-import { supabaseServer } from '../lib/supabaseServer'; // ต้องเป็น named export แบบนี้
+import { supabaseServer } from '../lib/supabaseServer';
 
 async function getCounts() {
-  const sb = supabaseServer(); // <-- เรียกฟังก์ชันเพื่อให้ได้ client
+  const sb = supabaseServer();
 
-  const all   = await sb.from('store_reviews').select('id', { count: 'exact', head: true });
-  const inbox = await sb.from('store_reviews').select('id', { count: 'exact', head: true }).is('label', null);
-  const fn    = await sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'functional');
-  const nfn   = await sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'nonfunctional');
-  const dom   = await sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'domain');
+  // ยิงพร้อมกันให้ไว
+  const [all, inbox, fn, nfn, dom, gen] = await Promise.all([
+    sb.from('store_reviews').select('id', { count: 'exact', head: true }),
+    sb.from('store_reviews').select('id', { count: 'exact', head: true }).is('label', null),
+    sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'functional'),
+    sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'nonfunctional'),
+    sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'domain'),
+    sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'general'),
+  ]);
 
   return {
     total: all.count ?? 0,
@@ -16,6 +21,7 @@ async function getCounts() {
     functional: fn.count ?? 0,
     nonfunctional: nfn.count ?? 0,
     domain: dom.count ?? 0,
+    general: gen.count ?? 0,
   };
 }
 
@@ -23,9 +29,14 @@ export default async function Sidebar() {
   const c = await getCounts();
 
   const Item = ({ href, label, count }) => (
-    <Link href={href} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-800">
+    <Link
+      href={href}
+      className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-800"
+    >
       <span>{label}</span>
-      {typeof count === 'number' && <span className="text-xs bg-zinc-700 px-2 py-0.5 rounded-full">{count}</span>}
+      {typeof count === 'number' && (
+        <span className="text-xs bg-zinc-700 px-2 py-0.5 rounded-full">{count}</span>
+      )}
     </Link>
   );
 
@@ -38,6 +49,7 @@ export default async function Sidebar() {
         <Item href="/functional" label="Functional" count={c.functional} />
         <Item href="/nonfunctional" label="Non-Functional" count={c.nonfunctional} />
         <Item href="/domain" label="Domain" count={c.domain} />
+        <Item href="/general" label="General" count={c.general} />
       </div>
       <div className="pt-4 text-xs text-zinc-400 px-2">Total: {c.total}</div>
     </aside>

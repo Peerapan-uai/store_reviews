@@ -34,23 +34,30 @@ async function getSummaryDirect() {
   return { totalCount: totalCount ?? 0, ratingCounts, avg: Number(avg.toFixed(2)) };
 }
 
-/** Label counts for cards */
+/** Label counts for cards (รวม General) */
 async function getLabelCounts() {
   const sb = supabaseServer();
 
-  const [{ count: inbox }, { count: functional }, { count: nonfunctional }, { count: domain }] =
-    await Promise.all([
-      sb.from('store_reviews').select('id', { count: 'exact', head: true }).is('label', null),
-      sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'functional'),
-      sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'nonfunctional'),
-      sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'domain'),
-    ]);
+  const [
+    { count: inbox },
+    { count: functional },
+    { count: nonfunctional },
+    { count: domain },
+    { count: general },
+  ] = await Promise.all([
+    sb.from('store_reviews').select('id', { count: 'exact', head: true }).is('label', null),
+    sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'functional'),
+    sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'nonfunctional'),
+    sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'domain'),
+    sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'general'),
+  ]);
 
   return {
     inbox: inbox ?? 0,
     functional: functional ?? 0,
     nonfunctional: nonfunctional ?? 0,
     domain: domain ?? 0,
+    general: general ?? 0,
   };
 }
 
@@ -100,7 +107,6 @@ async function getLatestDirect({
 }
 
 export default async function DashboardPage({ searchParams }) {
-  // searchParams เป็น object อยู่แล้ว ไม่ต้อง await
   const sp = searchParams ?? {};
   const page   = Number(sp.page ?? 1);
   const year   = sp.year ?? '';
@@ -140,7 +146,7 @@ export default async function DashboardPage({ searchParams }) {
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Review Dashboard</h1>
 
-      {/* Summary cards (ของเดิม) */}
+      {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="rounded-xl border border-zinc-800 p-4">
           <div className="text-sm text-gray-400">Total Reviews</div>
@@ -165,13 +171,14 @@ export default async function DashboardPage({ searchParams }) {
         </div>
       </div>
 
-      {/* By Label (ใหม่ ให้เข้ากับ Sidebar) */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* By Label (เพิ่ม General) */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         {[
-          { title: 'Inbox (Unlabeled)', value: labels.inbox, href: '/inbox' },
-          { title: 'Functional', value: labels.functional, href: '/functional' },
-          { title: 'Non-Functional', value: labels.nonfunctional, href: '/nonfunctional' },
-          { title: 'Domain', value: labels.domain, href: '/domain' },
+          { title: 'Inbox (Unlabeled)', value: labels.inbox,        href: '/inbox' },
+          { title: 'Functional',        value: labels.functional,   href: '/functional' },
+          { title: 'Non-Functional',    value: labels.nonfunctional,href: '/nonfunctional' },
+          { title: 'Domain',            value: labels.domain,       href: '/domain' },
+          { title: 'General',           value: labels.general,      href: '/general' }, // 🆕
         ].map(card => (
           <a key={card.title} href={card.href} className="rounded-xl border border-zinc-800 p-4 hover:bg-zinc-800/40">
             <div className="text-sm text-zinc-400">{card.title}</div>
@@ -180,7 +187,7 @@ export default async function DashboardPage({ searchParams }) {
         ))}
       </div>
 
-      {/* Filters (ของเดิม) */}
+      {/* Filters */}
       <form method="GET" className="flex flex-wrap items-center gap-2">
         <select name="year" defaultValue={year} className={selectCls}>
           <option value="">ทุกปี</option>
@@ -210,7 +217,7 @@ export default async function DashboardPage({ searchParams }) {
         </button>
       </form>
 
-      {/* Latest reviews table (ของเดิม) */}
+      {/* Latest reviews table */}
       <div className="rounded-xl border border-zinc-800 overflow-hidden">
         <div className="px-4 py-3 border-b border-zinc-800 font-semibold ">
           Latest Reviews
@@ -246,7 +253,7 @@ export default async function DashboardPage({ searchParams }) {
         </table>
       </div>
 
-      {/* Pagination (ของเดิม) */}
+      {/* Pagination */}
       <div className="flex items-center gap-2">
         <a
           className={`px-3 py-2 border border-zinc-700 rounded ${page <= 1 ? 'pointer-events-none opacity-50' : ''}`}

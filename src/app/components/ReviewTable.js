@@ -42,6 +42,7 @@ export default function ReviewTable({ rows }) {
           <option value="functional">Functional</option>
           <option value="nonfunctional">Non-Functional</option>
           <option value="domain">Domain</option>
+          <option value="general">General</option>
           <option value="">Clear label</option>
         </select>
         <button onClick={move} className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700">Move selected</button>

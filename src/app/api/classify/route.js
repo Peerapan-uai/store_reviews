@@ -6,7 +6,7 @@ import { supabaseServer } from '../../lib/supabaseServer'; // named import
 export async function POST(req) {
   try {
     const { ids = [], label } = await req.json();
-    const ALLOWED = ['functional', 'nonfunctional', 'domain', null, ''];
+    const ALLOWED = ['functional','nonfunctional','domain','general', null, ''];
     if (!ALLOWED.includes(label)) {
       return NextResponse.json({ error: 'invalid label' }, { status: 400 });
     }
@@ -14,6 +14,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'no ids' }, { status: 400 });
     }
 
+    
     const sb = supabaseServer();                    // ✅ ต้องเรียกฟังก์ชันก่อน
     const toSet = label || null;
 
