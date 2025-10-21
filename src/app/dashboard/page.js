@@ -34,6 +34,26 @@ async function getSummaryDirect() {
   return { totalCount: totalCount ?? 0, ratingCounts, avg: Number(avg.toFixed(2)) };
 }
 
+/** Label counts for cards */
+async function getLabelCounts() {
+  const sb = supabaseServer();
+
+  const [{ count: inbox }, { count: functional }, { count: nonfunctional }, { count: domain }] =
+    await Promise.all([
+      sb.from('store_reviews').select('id', { count: 'exact', head: true }).is('label', null),
+      sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'functional'),
+      sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'nonfunctional'),
+      sb.from('store_reviews').select('id', { count: 'exact', head: true }).eq('label', 'domain'),
+    ]);
+
+  return {
+    inbox: inbox ?? 0,
+    functional: functional ?? 0,
+    nonfunctional: nonfunctional ?? 0,
+    domain: domain ?? 0,
+  };
+}
+
 /** Fetch rows with pagination + filters */
 async function getLatestDirect({
   page = 1,
@@ -80,19 +100,20 @@ async function getLatestDirect({
 }
 
 export default async function DashboardPage({ searchParams }) {
-  // ✅ await searchParams
-  const sp = await searchParams;
-  const page   = Number(sp?.page ?? 1);
-  const year   = sp?.year ?? '';
-  const source = sp?.source ?? 'PLAY,APP';   // PLAY | APP | PLAY,APP
-  const stars  = sp?.stars ?? 'all';         // 'all' | '1'..'5'
-  const sort   = sp?.sort ?? 'date_desc';    // 'date_desc' | 'helpful_desc'
+  // searchParams เป็น object อยู่แล้ว ไม่ต้อง await
+  const sp = searchParams ?? {};
+  const page   = Number(sp.page ?? 1);
+  const year   = sp.year ?? '';
+  const source = sp.source ?? 'PLAY,APP';   // PLAY | APP | PLAY,APP
+  const stars  = sp.stars ?? 'all';         // 'all' | '1'..'5'
+  const sort   = sp.sort ?? 'date_desc';    // 'date_desc' | 'helpful_desc'
 
   const ratings = stars === 'all' ? '1,2,3,4,5' : String(stars);
 
-  const [{ totalCount, ratingCounts, avg }, { rows, total }] = await Promise.all([
+  const [{ totalCount, ratingCounts, avg }, { rows, total }, labels] = await Promise.all([
     getSummaryDirect(),
     getLatestDirect({ page, pageSize: 100, year, source, ratings, sort }),
+    getLabelCounts(),
   ]);
 
   // years list (ล่าสุดย้อนไป 10 ปี)
@@ -119,32 +140,47 @@ export default async function DashboardPage({ searchParams }) {
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Review Dashboard</h1>
 
-      {/* Summary cards */}
+      {/* Summary cards (ของเดิม) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-xl border p-4">
+        <div className="rounded-xl border border-zinc-800 p-4">
           <div className="text-sm text-gray-400">Total Reviews</div>
           <div className="text-3xl font-semibold">{totalCount}</div>
         </div>
 
-        <div className="rounded-xl border p-4">
+        <div className="rounded-xl border border-zinc-800 p-4">
           <div className="text-sm text-gray-400">Average Rating</div>
           <div className="text-3xl font-semibold">{avg}</div>
         </div>
 
-        <div className="rounded-xl border p-4">
+        <div className="rounded-xl border border-zinc-800 p-4">
           <div className="text-sm text-gray-400">By Stars</div>
           <div className="mt-2 grid grid-cols-5 gap-2 text-center">
             {[1, 2, 3, 4, 5].map((s) => (
               <div key={s} className="rounded-lg bg-zinc-900 border border-zinc-700 p-2">
                 <div className="text-xs text-gray-300">{s}★</div>
-                <div className="font-semibold">{ratingCounts?.[s] ?? 0}</div>
+                <div className="font-semibold text-red-100">{ratingCounts?.[s] ?? 0}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Filters */}
+      {/* By Label (ใหม่ ให้เข้ากับ Sidebar) */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {[
+          { title: 'Inbox (Unlabeled)', value: labels.inbox, href: '/inbox' },
+          { title: 'Functional', value: labels.functional, href: '/functional' },
+          { title: 'Non-Functional', value: labels.nonfunctional, href: '/nonfunctional' },
+          { title: 'Domain', value: labels.domain, href: '/domain' },
+        ].map(card => (
+          <a key={card.title} href={card.href} className="rounded-xl border border-zinc-800 p-4 hover:bg-zinc-800/40">
+            <div className="text-sm text-zinc-400">{card.title}</div>
+            <div className="text-3xl font-semibold mt-1">{card.value}</div>
+          </a>
+        ))}
+      </div>
+
+      {/* Filters (ของเดิม) */}
       <form method="GET" className="flex flex-wrap items-center gap-2">
         <select name="year" defaultValue={year} className={selectCls}>
           <option value="">ทุกปี</option>
@@ -174,9 +210,9 @@ export default async function DashboardPage({ searchParams }) {
         </button>
       </form>
 
-      {/* Latest reviews table */}
-      <div className="rounded-xl border overflow-hidden">
-        <div className="px-4 py-3 border-b font-semibold">
+      {/* Latest reviews table (ของเดิม) */}
+      <div className="rounded-xl border border-zinc-800 overflow-hidden">
+        <div className="px-4 py-3 border-b border-zinc-800 font-semibold ">
           Latest Reviews
           <span className="ml-2 text-sm text-gray-400">(รวม {total})</span>
         </div>
@@ -193,7 +229,7 @@ export default async function DashboardPage({ searchParams }) {
           </thead>
           <tbody>
             {rows?.map((r) => (
-              <tr key={r.id} className="border-t align-top">
+              <tr key={r.id} className="border-t border-zinc-800 align-top">
                 <td className="p-3 whitespace-nowrap">
                   {r?.date_iso ? new Date(r.date_iso).toLocaleDateString('th-TH') : '-'}
                 </td>
@@ -210,17 +246,17 @@ export default async function DashboardPage({ searchParams }) {
         </table>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination (ของเดิม) */}
       <div className="flex items-center gap-2">
         <a
-          className={`px-3 py-2 border rounded ${page <= 1 ? 'pointer-events-none opacity-50' : ''}`}
+          className={`px-3 py-2 border border-zinc-700 rounded ${page <= 1 ? 'pointer-events-none opacity-50' : ''}`}
           href={mkUrl(page - 1)}
         >
           Prev
         </a>
         <span>Page {page} / {pageCount}</span>
         <a
-          className={`px-3 py-2 border rounded ${page >= pageCount ? 'pointer-events-none opacity-50' : ''}`}
+          className={`px-3 py-2 border border-zinc-700 rounded ${page >= pageCount ? 'pointer-events-none opacity-50' : ''}`}
           href={mkUrl(page + 1)}
         >
           Next
